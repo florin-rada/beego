@@ -23,6 +23,8 @@
 //	`session_key` char(64) NOT NULL,
 //	`session_data` blob,
 //	`session_expiry` int(11) unsigned NOT NULL,
+//  `session_datecreated` int(11) unsigned NOT NULL,
+//  `id_user` int(11) unsigned NOT NULL,
 //	PRIMARY KEY (`session_key`)
 //	) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 //
@@ -113,14 +115,19 @@ func (st *SessionStore) SessionRelease(w http.ResponseWriter) {
 	if err != nil {
 		return
 	}
-	st.c.Exec("UPDATE "+TableName+" set `session_data`=?, `session_expiry`=? where session_key=?",
-		b, time.Now().Unix(), st.sid)
+	var id_user int64
+	if st.values["id_user"] != nil {
+		id_user = st.values["id_user"].(int64)
+	}
+	st.c.Exec("UPDATE "+TableName+" set `session_data`=?, `session_expiry`=?, `id_user`=? where session_key=?",
+		b, time.Now().Unix(), id_user, st.sid)
 }
 
 // Provider mysql session provider
 type Provider struct {
 	maxlifetime int64
 	savePath    string
+	db          *sql.DB
 }
 
 // connect to mysql
@@ -129,6 +136,9 @@ func (mp *Provider) connectInit() *sql.DB {
 	if e != nil {
 		return nil
 	}
+	db.SetConnMaxLifetime(9 * time.Second)
+	db.SetMaxIdleConns(50)
+	db.SetMaxOpenConns(151)
 	return db
 }
 
@@ -137,18 +147,19 @@ func (mp *Provider) connectInit() *sql.DB {
 func (mp *Provider) SessionInit(maxlifetime int64, savePath string) error {
 	mp.maxlifetime = maxlifetime
 	mp.savePath = savePath
+	mp.db = mp.connectInit()
 	return nil
 }
 
 // SessionRead get mysql session by sid
 func (mp *Provider) SessionRead(sid string) (session.Store, error) {
-	c := mp.connectInit()
+	c := mp.db
 	row := c.QueryRow("select session_data from "+TableName+" where session_key=?", sid)
 	var sessiondata []byte
 	err := row.Scan(&sessiondata)
 	if err == sql.ErrNoRows {
-		c.Exec("insert into "+TableName+"(`session_key`,`session_data`,`session_expiry`) values(?,?,?)",
-			sid, "", time.Now().Unix())
+		c.Exec("insert into "+TableName+"(`session_key`,`session_data`,`session_expiry`, `session_datecreated`, `id_user`) values(?,?,?,?,?)",
+			sid, "", time.Now().Unix(), time.Now().Unix(), 0)
 	}
 	var kv map[interface{}]interface{}
 	if len(sessiondata) == 0 {
@@ -165,8 +176,8 @@ func (mp *Provider) SessionRead(sid string) (session.Store, error) {
 
 // SessionExist check mysql session exist
 func (mp *Provider) SessionExist(sid string) bool {
-	c := mp.connectInit()
-	defer c.Close()
+	c := mp.db
+	//defer c.Close()
 	row := c.QueryRow("select session_data from "+TableName+" where session_key=?", sid)
 	var sessiondata []byte
 	err := row.Scan(&sessiondata)
@@ -175,7 +186,7 @@ func (mp *Provider) SessionExist(sid string) bool {
 
 // SessionRegenerate generate new sid for mysql session
 func (mp *Provider) SessionRegenerate(oldsid, sid string) (session.Store, error) {
-	c := mp.connectInit()
+	c := mp.db
 	row := c.QueryRow("select session_data from "+TableName+" where session_key=?", oldsid)
 	var sessiondata []byte
 	err := row.Scan(&sessiondata)
@@ -198,25 +209,26 @@ func (mp *Provider) SessionRegenerate(oldsid, sid string) (session.Store, error)
 
 // SessionDestroy delete mysql session by sid
 func (mp *Provider) SessionDestroy(sid string) error {
-	c := mp.connectInit()
+	c := mp.db
 	c.Exec("DELETE FROM "+TableName+" where session_key=?", sid)
-	c.Close()
+	//c.Close()
 	return nil
 }
 
 // SessionGC delete expired values in mysql session
 func (mp *Provider) SessionGC() {
-	c := mp.connectInit()
+	c := mp.db
 	c.Exec("DELETE from "+TableName+" where session_expiry < ?", time.Now().Unix()-mp.maxlifetime)
-	c.Close()
+	c.Exec("DELETE from " + TableName + " where (OCTET_LENGTH(session_data) = 0 or OCTET_LENGTH(session_data) = 124) AND DATEDIFF(CURDATE(), FROM_UNIXTIME(session_datecreated)) >= 3")
+	//c.Close()
 }
 
 // SessionAll count values in mysql session
 func (mp *Provider) SessionAll() int {
-	c := mp.connectInit()
-	defer c.Close()
+	c := mp.db
+	//defer c.Close()
 	var total int
-	err := c.QueryRow("SELECT count(*) as num from " + TableName).Scan(&total)
+	err := c.QueryRow("SELECT count(*) as num from " + TableName + " where OCTET_LENGTH(session_data) > 0").Scan(&total)
 	if err != nil {
 		return 0
 	}
