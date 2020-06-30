@@ -28,6 +28,8 @@
 package session
 
 import (
+	"bytes"
+	"crypto/des"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -40,6 +42,70 @@ import (
 	"os"
 	"time"
 )
+
+func PKCS5Padding(ciphertext []byte, blockSize int) []byte {
+	padding := blockSize - len(ciphertext)%blockSize
+	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
+	return append(ciphertext, padtext...)
+}
+func PKCS5UnPadding(origData []byte) []byte {
+	length := len(origData)
+	unpadding := int(origData[length-1])
+	return origData[:(length - unpadding)]
+}
+func ZeroPadding(ciphertext []byte, blockSize int) []byte {
+	padding := blockSize - len(ciphertext)%blockSize
+	padtext := bytes.Repeat([]byte{0}, padding)
+	return append(ciphertext, padtext...)
+}
+func ZeroUnPadding(origData []byte) []byte {
+	return bytes.TrimFunc(origData,
+		func(r rune) bool {
+			return r == rune(0)
+		})
+}
+func DesEncrypt(src, key []byte) ([]byte, error) {
+	block, err := des.NewTripleDESCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	bs := block.BlockSize()
+	src = ZeroPadding(src, bs)
+	// src = PKCS5Padding(src, bs)
+	if len(src)%bs != 0 {
+		return nil, errors.New("Need a multiple of the blocksize")
+	}
+	out := make([]byte, len(src))
+	dst := out
+	for len(src) > 0 {
+		block.Encrypt(dst, src[:bs])
+		src = src[bs:]
+		dst = dst[bs:]
+	}
+	return out, nil
+}
+func DesDecrypt(src, key []byte) ([]byte, error) {
+	block, err := des.NewTripleDESCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]byte, len(src))
+	dst := out
+	bs := block.BlockSize()
+	if len(src)%bs != 0 {
+		return nil, errors.New("crypto/cipher: input not full blocks")
+	}
+	for len(src) > 0 {
+		block.Decrypt(dst, src[:bs])
+		src = src[bs:]
+		dst = dst[bs:]
+	}
+	out = ZeroUnPadding(out)
+	// out = PKCS5UnPadding(out)
+	return out, nil
+}
+
+var H_key = []byte("Npt7_keRyaVMu*dE^X2Y9L!N") // |H_key| = 24
 
 // Store contains all data for one session process with specific id.
 type Store interface {
@@ -168,7 +234,7 @@ func (manager *Manager) GetProvider() Provider {
 	return manager.provider
 }
 
-// getSid retrieves session identifier from HTTP Request.
+// getSid retrieves session identifier from HTTP Request. -- Modificat de Raul
 // First try to retrieve id by reading from cookie, session cookie name is configurable,
 // if not exist, then retrieve id from querying parameters.
 //
@@ -199,11 +265,14 @@ func (manager *Manager) getSid(r *http.Request) (string, error) {
 		return sid, nil
 	}
 
-	// HTTP Request contains cookie for sessionid info.
-	return url.QueryUnescape(cookie.Value)
+	// HTTP Request contains HASHED cookie for sessionid info.
+	cxc, _ := url.QueryUnescape(cookie.Value)
+	hsid, _ := DesDecrypt([]byte(cxc), H_key)
+	dehashed_sid := string(hsid)
+	return url.QueryUnescape(dehashed_sid)
 }
 
-// SessionStart generate or read the session id from http request.
+// SessionStart generate or read the session id from http request. -- Modificat de Raul
 // if session id exists, return SessionStore with this id.
 func (manager *Manager) SessionStart(w http.ResponseWriter, r *http.Request) (session Store, err error) {
 	sid, errs := manager.getSid(r)
@@ -225,9 +294,13 @@ func (manager *Manager) SessionStart(w http.ResponseWriter, r *http.Request) (se
 	if err != nil {
 		return nil, err
 	}
+
+	hhh, _ := DesEncrypt([]byte(sid), H_key)
+	hashed_sid := string(hhh)
+
 	cookie := &http.Cookie{
 		Name:     manager.config.CookieName,
-		Value:    url.QueryEscape(sid),
+		Value:    url.QueryEscape(hashed_sid),
 		Path:     "/",
 		HttpOnly: !manager.config.DisableHTTPOnly,
 		Secure:   manager.isSecure(r),
@@ -250,7 +323,7 @@ func (manager *Manager) SessionStart(w http.ResponseWriter, r *http.Request) (se
 	return
 }
 
-// SessionDestroy Destroy session by its id in http request cookie.
+// SessionDestroy Destroy session by its id in http request cookie. -- Modificat de Raul
 func (manager *Manager) SessionDestroy(w http.ResponseWriter, r *http.Request) {
 	if manager.config.EnableSidInHTTPHeader {
 		r.Header.Del(manager.config.SessionNameInHTTPHeader)
@@ -263,7 +336,9 @@ func (manager *Manager) SessionDestroy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sid, _ := url.QueryUnescape(cookie.Value)
-	manager.provider.SessionDestroy(sid)
+	hsid, _ := DesDecrypt([]byte(sid), H_key)
+	dehashed_sid := string(hsid)
+	manager.provider.SessionDestroy(dehashed_sid)
 	if manager.config.EnableSetCookie {
 		expiration := time.Now()
 		cookie = &http.Cookie{Name: manager.config.CookieName,
