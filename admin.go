@@ -26,10 +26,10 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/astaxie/beego/grace"
-	"github.com/astaxie/beego/logs"
-	"github.com/astaxie/beego/toolbox"
-	"github.com/astaxie/beego/utils"
+	"github.com/florin-rada/beego/grace"
+	"github.com/florin-rada/beego/logs"
+	"github.com/florin-rada/beego/toolbox"
+	"github.com/florin-rada/beego/utils"
 )
 
 // BeeAdminApp is the default adminApp used by admin module.

@@ -27,9 +27,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/astaxie/beego/grace"
-	"github.com/astaxie/beego/logs"
-	"github.com/astaxie/beego/utils"
+	"github.com/florin-rada/beego/grace"
+	"github.com/florin-rada/beego/logs"
+	"github.com/florin-rada/beego/utils"
 	"golang.org/x/crypto/acme/autocert"
 )
 

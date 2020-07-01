@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/astaxie/beego/cache"
+	"github.com/florin-rada/beego/cache"
 	"github.com/gomodule/redigo/redis"
 )
 
