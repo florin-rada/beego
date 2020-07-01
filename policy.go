@@ -17,7 +17,7 @@ package beego
 import (
 	"strings"
 
-	"github.com/astaxie/beego/context"
+	"github.com/florin-rada/beego/context"
 )
 
 // PolicyFunc defines a policy function which is invoked before the controller handler is executed.

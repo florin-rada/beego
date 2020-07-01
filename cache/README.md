@@ -17,7 +17,7 @@ As of now this cache support memory, Memcache and Redis.
 First you must import it
 
 	import (
-		"github.com/astaxie/beego/cache"
+		"github.com/florin-rada/beego/cache"
 	)
 
 Then init a Cache (example with memory adapter)

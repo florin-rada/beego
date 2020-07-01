@@ -26,9 +26,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/astaxie/beego/context"
-	"github.com/astaxie/beego/logs"
-	"github.com/hashicorp/golang-lru"
+	"github.com/florin-rada/beego/context"
+	"github.com/florin-rada/beego/logs"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var errNotStaticRequest = errors.New("request not a static file request")
@@ -202,7 +202,7 @@ func searchFile(ctx *context.Context) (string, os.FileInfo, error) {
 		if !strings.Contains(requestPath, prefix) {
 			continue
 		}
-		if prefix != "/" &&  len(requestPath) > len(prefix) && requestPath[len(prefix)] != '/' {
+		if prefix != "/" && len(requestPath) > len(prefix) && requestPath[len(prefix)] != '/' {
 			continue
 		}
 		filePath := path.Join(staticDir, requestPath[len(prefix):])

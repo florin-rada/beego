@@ -20,8 +20,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/astaxie/beego/context"
-	"github.com/astaxie/beego/logs"
+	"github.com/florin-rada/beego/context"
+	"github.com/florin-rada/beego/logs"
 )
 
 type TestController struct {
@@ -70,7 +70,6 @@ func (tc *TestController) GetEmptyBody() {
 	var res []byte
 	tc.Ctx.Output.Body(res)
 }
-
 
 type JSONController struct {
 	Controller
@@ -656,16 +655,13 @@ func beegoBeforeRouter1(ctx *context.Context) {
 	ctx.WriteString("|BeforeRouter1")
 }
 
-
 func beegoBeforeExec1(ctx *context.Context) {
 	ctx.WriteString("|BeforeExec1")
 }
 
-
 func beegoAfterExec1(ctx *context.Context) {
 	ctx.WriteString("|AfterExec1")
 }
-
 
 func beegoFinishRouter1(ctx *context.Context) {
 	ctx.WriteString("|FinishRouter1")

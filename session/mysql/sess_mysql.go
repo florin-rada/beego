@@ -30,8 +30,8 @@
 //
 // Usage:
 // import(
-//   _ "github.com/astaxie/beego/session/mysql"
-//   "github.com/astaxie/beego/session"
+//   _ "github.com/florin-rada/beego/session/mysql"
+//   "github.com/florin-rada/beego/session"
 // )
 //
 //	func init() {

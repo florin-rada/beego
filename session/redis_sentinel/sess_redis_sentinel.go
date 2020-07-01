@@ -20,8 +20,8 @@
 //
 // Usage:
 // import(
-//   _ "github.com/astaxie/beego/session/redis_sentinel"
-//   "github.com/astaxie/beego/session"
+//   _ "github.com/florin-rada/beego/session/redis_sentinel"
+//   "github.com/florin-rada/beego/session"
 // )
 //
 //	func init() {
@@ -33,13 +33,14 @@
 package redis_sentinel
 
 import (
-	"github.com/astaxie/beego/session"
-	"github.com/go-redis/redis"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/florin-rada/beego/session"
+	"github.com/go-redis/redis"
 )
 
 var redispder = &Provider{}
