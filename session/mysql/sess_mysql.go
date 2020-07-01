@@ -110,7 +110,7 @@ func (st *SessionStore) SessionID() string {
 // SessionRelease save mysql session values to database.
 // must call this method to save values to database.
 func (st *SessionStore) SessionRelease(w http.ResponseWriter) {
-	defer st.c.Close()
+	//defer st.c.Close()
 	b, err := session.EncodeGob(st.values)
 	if err != nil {
 		return
